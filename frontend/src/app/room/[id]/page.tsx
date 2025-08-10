@@ -99,7 +99,7 @@ export default function RoomPage() {
       try {
         wsRef.current.close();
       } catch {}
-    const uri = `${env.BACKEND_URL}/ws/${room}?name=${encodeURIComponent(name)}`;
+    const uri = `${env.NEXT_PUBLIC_BACKEND_URL}/ws/${room}?name=${encodeURIComponent(name)}`;
     wsRef.current = new WebSocket(uri);
     wsRef.current.onmessage = (ev) => {
       try {
