@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft } from "lucide-react";
 import * as vision from "@mediapipe/tasks-vision";
+import { env } from "@/env";
 
 export default function RoomPage() {
   const params = useParams<{ id: string }>();
@@ -98,8 +99,7 @@ export default function RoomPage() {
       try {
         wsRef.current.close();
       } catch {}
-    const wsScheme = location.protocol === "https:" ? "wss" : "ws";
-    const uri = `${wsScheme}://${location.host}/ws/${room}?name=${encodeURIComponent(name)}`;
+    const uri = `${env.BACKEND_URL}/ws/${room}?name=${encodeURIComponent(name)}`;
     wsRef.current = new WebSocket(uri);
     wsRef.current.onmessage = (ev) => {
       try {
