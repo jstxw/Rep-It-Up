@@ -1,0 +1,333 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Push-up Game (Web)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body { margin: 0; background: #111; color: #eee; font-family: system-ui, Arial, sans-serif; }
+      header { padding: 12px; background: #222; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #333; }
+      header label { display: flex; align-items: center; gap: 6px; }
+      header input { padding: 10px 12px; background: #111; color: #eee; border: 1px solid #444; border-radius: 10px; }
+      header button { padding: 10px 14px; background: #0a84ff; color: #fff; border: 0; border-radius: 10px; cursor: pointer; font-weight: 600; }
+      header button:hover { filter: brightness(1.1); }
+      main { position: relative; display: flex; justify-content: center; padding: 16px; }
+      #wrap { position: relative; width: min(96vw, 1100px); margin-inline: auto; }
+      /* Make video the base layer; canvas overlays it */
+      #wrap video { display: block; width: 100%; height: auto; border-radius: 12px; box-shadow: 0 8px 30px rgba(0,0,0,.45); background: #000; }
+      #wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 12px; pointer-events: none; }
+      #status { margin-left: auto; opacity: .9; padding: 6px 10px; border-radius: 999px; background: #1b1b1b; border: 1px solid #333; }
+      @media (max-width: 640px) {
+        header { gap: 8px; }
+        header label { flex: 1; min-width: 120px; }
+        header input { width: 100%; box-sizing: border-box; }
+        #wrap { width: 100vw; }
+      }
+    </style>
+
+    <!-- New: TFJS + Pose Detection (MoveNet) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/pose-detection"></script>
+
+    <script type="module">
+      // Using TFJS MoveNet (pose-detection)
+
+      const els = { room: null, name: null, connectBtn: null, status: null, video: null, canvas: null };
+
+      let ws = null;
+      let leader = [];
+      let count = 0, sentCount = -1, lastSentTs = 0;
+      let lastTs = 0;
+      let pose = null; // TFJS MoveNet detector
+      let running = false;
+
+      class PoseDetector {
+        constructor() { this.results = null; }
+        findPose(ctx, lms, vw, vh, draw = true) {
+          if (!draw) return;
+          ctx.save();
+          ctx.fillStyle = "#00d0ff";
+          for (let i = 0; i < lms.length; i++) {
+            const p = lms[i];
+            if (!p || p.x == null || p.y == null) continue;
+            ctx.beginPath();
+            ctx.arc(p.x * vw, p.y * vh, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+        findPosition(vw, vh, ctx = null, draw = true, bboxWithHands = false) {
+          const lmList = [];
+          let bboxInfo = {};
+          let extra_feature = null;
+          const lms = this.results?.landmarks?.[0];
+          if (lms && lms.length) {
+            for (let id = 0; id < lms.length; id++) {
+              const lm = lms[id];
+              if (!lm) { lmList.push(null); continue; }
+              const cx = Math.round(lm.x * vw);
+              const cy = Math.round(lm.y * vh);
+              const cz = Math.round((lm.z || 0) * vw);
+              lmList.push([id, cx, cy, cz]);
+            }
+            const hasL = lmList[11] && lmList[12];
+            const ad = hasL ? (Math.abs(lmList[12][1] - lmList[11][1]) >> 1) : 20;
+            let x1, x2;
+            if (hasL) {
+              if (bboxWithHands && lmList[15] && lmList[16]) {
+                x1 = lmList[16][1] - ad;
+                x2 = lmList[15][1] + ad;
+              } else {
+                x1 = lmList[12][1] - ad;
+                x2 = lmList[11][1] + ad;
+              }
+            } else {
+              // Fallback to hips if shoulders missing
+              if (lmList[23] && lmList[24]) {
+                x1 = Math.min(lmList[23][1], lmList[24][1]) - ad;
+                x2 = Math.max(lmList[23][1], lmList[24][1]) + ad;
+              }
+            }
+            // Bottom of bbox: prefer heel(29) -> ankle(27/28) -> hips
+            const y2cand = [
+              lmList[29]?.[2], lmList[27]?.[2], lmList[28]?.[2],
+              lmList[25]?.[2], lmList[26]?.[2], lmList[23]?.[2], lmList[24]?.[2]
+            ].filter(v => typeof v === "number");
+            const y2 = (y2cand.length ? Math.max(...y2cand) : (vh - 1)) + ad;
+            // Top of bbox: prefer left_eye(1) -> nose(0) -> shoulders
+            const y1cand = [
+              lmList[1]?.[2], lmList[0]?.[2], lmList[11]?.[2], lmList[12]?.[2]
+            ].filter(v => typeof v === "number");
+            const y1 = (y1cand.length ? Math.min(...y1cand) : 0) - ad;
+            if (typeof x1 === "number" && typeof x2 === "number") {
+             const bbox = [x1, y1, x2 - x1, y2 - y1];
+             const cx = bbox[0] + (bbox[2] >> 1);
+             const cy = bbox[1] + (bbox[3] >> 1);
+             bboxInfo = { bbox, center: [cx, cy] };
+            }
+
+            if (hasL) {
+              const neck_x = Math.round((lmList[12][1] + lmList[11][1]) / 2);
+              const neck_y = Math.round((lmList[12][2] + lmList[11][2]) / 2);
+              extra_feature = [neck_x, neck_y];
+            }
+ 
+             if (draw && ctx) {
+               ctx.save();
+               ctx.strokeStyle = "rgba(255,0,255,0.9)";
+               ctx.lineWidth = 3;
+               if (bboxInfo.bbox) ctx.strokeRect(bboxInfo.bbox[0], bboxInfo.bbox[1], bboxInfo.bbox[2], bboxInfo.bbox[3]);
+               if (extra_feature) {
+                 ctx.fillStyle = "#0f0";
+                 ctx.beginPath();
+                 ctx.arc(extra_feature[0], extra_feature[1], 5, 0, Math.PI * 2);
+                 ctx.fill();
+               }
+               ctx.restore();
+             }
+           }
+           return { lmList, bboxInfo, extra_feature };
+        }
+      }
+
+      class Pushup {
+        constructor() { this.count = 0; this.position = null; }
+        detect(lmList) {
+          if (lmList && lmList.length) {
+            const y = (i) => lmList[i]?.[2] ?? Infinity;
+            // Up position
+            if (y(12) > y(14) && y(11) > y(13) && y(12) > y(26) && y(24) > y(26) && y(23) > y(25)) {
+              this.position = "Up";
+            }
+            // Down transition -> count++
+            if (y(12) <= y(14) && y(11) <= y(13) && y(11) <= y(25) && y(24) <= y(26) && y(23) <= y(25) && this.position === "Up") {
+              this.position = "Down";
+              this.count += 1;
+            }
+          }
+          return this.count;
+        }
+      }
+
+      const detector = new PoseDetector();
+      const pushup = new Pushup();
+
+      function drawHUD(ctx, w, h) {
+        ctx.save();
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(12, 12, 220, 88);
+        ctx.fillStyle = "#fff";
+        ctx.font = "20px system-ui, Arial";
+        ctx.fillText(`Reps: ${count}`, 26, 50);
+
+        const pad = 12, lbw = 270;
+        const rows = Math.min(10, leader.length);
+        const boxH = 30 + 24 * rows;
+        ctx.fillStyle = "rgba(0,0,0,0.6)";
+        ctx.fillRect(w - lbw - pad, pad, lbw, boxH);
+        ctx.fillStyle = "#fff";
+        ctx.font = "16px system-ui, Arial";
+        ctx.fillText("Leaderboard", w - lbw - pad + 12, pad + 20);
+        ctx.fillStyle = "rgb(220,220,220)";
+        ctx.font = "14px system-ui, Arial";
+        for (let i = 0; i < rows; i++) {
+          const p = leader[i];
+          const nm = (p.name || "").slice(0, 14).padEnd(14, " ");
+          const line = `${i + 1}. ${nm}  ${p.count}`;
+          ctx.fillText(line, w - lbw - pad + 12, pad + 20 + 24 * (i + 1));
+        }
+        ctx.restore();
+      }
+
+      function sendUpdateMaybe() {
+        const now = performance.now() / 1000;
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        if (count !== sentCount || (now - lastSentTs) > 2.0) {
+          ws.send(JSON.stringify({ type: "update", count: count | 0 }));
+          sentCount = count;
+          lastSentTs = now;
+        }
+      }
+
+      async function setupPose() {
+        // Load MoveNet SinglePose Lightning
+        pose = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, {
+          modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING
+        });
+      }
+
+      async function setupCamera() {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        els.video.srcObject = stream;
+        await els.video.play();
+      }
+
+      function connectWS(uri) {
+        if (ws) try { ws.close(); } catch {}
+        ws = new WebSocket(uri);
+        els.status.textContent = "Connecting...";
+        ws.onopen = () => { els.status.textContent = "Connected"; sentCount = -1; lastSentTs = 0; };
+        ws.onclose = () => { els.status.textContent = "Disconnected"; };
+        ws.onerror = () => { els.status.textContent = "Error"; };
+        ws.onmessage = (ev) => {
+          try {
+            const data = JSON.parse(ev.data);
+            if (data.type === "leaderboard" || data.type === "join" || data.type === "leave") {
+              leader = Array.isArray(data.players) ? data.players : [];
+            }
+          } catch {}
+        };
+        setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            try { ws.send(JSON.stringify({ type: "ping" })); } catch {}
+          }
+        }, 10000);
+      }
+
+      async function loop() {
+        if (!running) return;
+        const ctx = els.canvas.getContext("2d");
+        const vw = els.video.videoWidth;
+        const vh = els.video.videoHeight;
+        if (vw === 0 || vh === 0) return requestAnimationFrame(loop);
+
+        if (els.canvas.width !== vw || els.canvas.height !== vh) { els.canvas.width = vw; els.canvas.height = vh; }
+
+        ctx.clearRect(0, 0, vw, vh);
+
+        if (pose) {
+          // Estimate poses with MoveNet
+          const poses = await pose.estimatePoses(els.video);
+          if (poses && poses.length > 0) {
+            const kps = poses[0].keypoints || [];
+            // Map TFJS MoveNet keypoints to BlazePose-like indices we use elsewhere
+            const nameToIdx = {
+              nose: 0,
+              left_eye: 1, right_eye: 2,
+              left_ear: 3, right_ear: 4,
+              left_shoulder: 11, right_shoulder: 12,
+              left_elbow: 13, right_elbow: 14,
+              left_wrist: 15, right_wrist: 16,
+              left_hip: 23, right_hip: 24,
+              left_knee: 25, right_knee: 26,
+              left_ankle: 27, right_ankle: 28
+            };
+            const lms = Array(33).fill(null);
+            for (const kp of kps) {
+              if (!kp || kp.score < 0.3) continue;
+              const idx = nameToIdx[kp.name];
+              if (idx != null) {
+                lms[idx] = { x: kp.x / vw, y: kp.y / vh, z: 0 };
+              }
+            }
+            // Fallback: use left_ankle for left_heel index 29 if available
+            if (!lms[29] && lms[27]) lms[29] = lms[27];
+            detector.results = { landmarks: [lms] };
+
+            // Draw + count
+            detector.findPose(ctx, lms, vw, vh, true);
+            const { lmList } = detector.findPosition(vw, vh, ctx, true, false);
+            const newCount = pushup.detect(lmList);
+            if (newCount !== count) { count = newCount; sendUpdateMaybe(); }
+          }
+
+          const t = performance.now();
+          const fps = lastTs ? 1000 / (t - lastTs) : 0;
+          lastTs = t;
+          ctx.fillStyle = "rgba(0,0,0,0.6)";
+          ctx.fillRect(10, vh - 34, 110, 24);
+          ctx.fillStyle = "#fff";
+          ctx.font = "14px system-ui, Arial";
+          ctx.fillText(`${fps.toFixed(1)} FPS`, 16, vh - 16);
+
+          drawHUD(ctx, vw, vh);
+        }
+
+        requestAnimationFrame(loop);
+      }
+
+      async function start() {
+        els.room = document.getElementById("room");
+        els.name = document.getElementById("name");
+        els.connectBtn = document.getElementById("connect");
+        els.status = document.getElementById("status");
+        els.video = document.getElementById("video");
+        els.canvas = document.getElementById("canvas");
+
+        const url = new URL(location.href);
+        els.room.value = (url.searchParams.get("room") || "ABCD").toUpperCase();
+        els.name.value = url.searchParams.get("name") || "Player";
+
+        await setupCamera();
+        await setupPose();
+
+        els.connectBtn.onclick = () => {
+          const room = els.room.value.trim().toUpperCase();
+          const name = encodeURIComponent(els.name.value.trim() || "Player");
+          const wsScheme = location.protocol === "https:" ? "wss" : "ws";
+          const wsBase = `${wsScheme}://${location.host}`;
+          const uri = `${wsBase}/ws/${room}?name=${name}`;
+          connectWS(uri);
+          running = true;
+          requestAnimationFrame(loop);
+        };
+      }
+
+      start();
+    </script>
+  </head>
+  <body>
+    <header>
+      <label>Room <input id="room" placeholder="ABCD" size="6" /></label>
+      <label>Name <input id="name" placeholder="Your name" size="12" /></label>
+      <button id="connect">Connect</button>
+      <div id="status">Idle</div>
+    </header>
+    <main>
+      <div id="wrap">
+        <video id="video" playsinline muted autoplay></video>
+        <canvas id="canvas"></canvas>
+      </div>
+    </main>
+  </body>
+</html>
