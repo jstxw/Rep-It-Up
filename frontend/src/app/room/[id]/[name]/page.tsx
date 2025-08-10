@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { notFound, useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Crown, Users, Video, VideoOff } from "lucide-react";
 import * as vision from "@mediapipe/tasks-vision";
 import { env } from "@/env";
 import z from "zod";
@@ -24,6 +24,8 @@ export default function RoomPage() {
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
   const [count, setCount] = useState(0);
   const [winnerId, setWinnerId] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -50,6 +52,7 @@ export default function RoomPage() {
     });
     videoRef.current.srcObject = stream;
     await videoRef.current.play();
+    setIsCameraReady(true);
     console.log("[WEBCAM]: loaded");
   };
 
@@ -110,21 +113,21 @@ export default function RoomPage() {
       type: z.literal("leaderboard"),
       room: z.string(),
       players: z.array(
-        z.object({ id: z.string(), name: z.string(), count: z.number() })
+        z.object({ id: z.string(), name: z.string(), count: z.number() }),
       ),
     }),
     z.object({
       type: z.literal("join"),
       room: z.string(),
       players: z.array(
-        z.object({ id: z.string(), name: z.string(), count: z.number() })
+        z.object({ id: z.string(), name: z.string(), count: z.number() }),
       ),
     }),
     z.object({
       type: z.literal("leave"),
       room: z.string(),
       players: z.array(
-        z.object({ id: z.string(), name: z.string(), count: z.number() })
+        z.object({ id: z.string(), name: z.string(), count: z.number() }),
       ),
     }),
     z.object({
@@ -136,7 +139,7 @@ export default function RoomPage() {
         count: z.number(),
       }),
       players: z.array(
-        z.object({ id: z.string(), name: z.string(), count: z.number() })
+        z.object({ id: z.string(), name: z.string(), count: z.number() }),
       ),
     }),
   ]);
@@ -150,6 +153,7 @@ export default function RoomPage() {
     const uri = `${env.NEXT_PUBLIC_BACKEND_URL}/ws/${room}?name=${encodeURIComponent(name)}`;
     wsRef.current = new WebSocket(uri);
     console.log("[WS]: connecting");
+    setIsConnected(true);
     wsRef.current.onmessage = (ev) => {
       console.log("[WS]: incoming data: ", ev.data);
       const data = SocketDataSchema.parse(JSON.parse(ev.data as string));
@@ -234,50 +238,123 @@ export default function RoomPage() {
   };
 
   return (
-    <main className="min-h-[100dvh]">
-      <header className="border-b">
+    <main className="min-h-[100dvh] bg-gradient-to-b from-white to-slate-50">
+      <header className="sticky top-0 border-b bg-white/80 backdrop-blur-sm">
         <div className="container mx-auto flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push("/")}
+            className="hover:bg-slate-100"
+          >
             <ChevronLeft className="size-5" />
           </Button>
-          <div className="font-semibold">Room {roomId}</div>
-          <div className="ml-auto flex items-center gap-2">
-            <Button onClick={startSession}>Connect & Start</Button>
+          <div className="flex items-center gap-2">
+            <div className="rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-700">
+              Room #{roomId}
+            </div>
+            <div className="text-muted-foreground flex items-center gap-1 text-sm">
+              <Users className="size-4" />
+              {leaderboard.length} participants
+            </div>
+          </div>
+          <div className="ml-auto">
+            {!isConnected ? (
+              <Button
+                onClick={startSession}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                Start Session
+              </Button>
+            ) : (
+              <div className="flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-sm font-medium text-emerald-700">
+                <span className="size-2 animate-pulse rounded-full bg-emerald-500" />
+                Live
+              </div>
+            )}
           </div>
         </div>
       </header>
 
       <section className="container mx-auto grid gap-6 px-4 py-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Push-up Counter</CardTitle>
+          <Card className="overflow-hidden">
+            <CardHeader className="border-b bg-slate-50">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  {isCameraReady ? (
+                    <Video className="size-5 text-emerald-600" />
+                  ) : (
+                    <VideoOff className="size-5 text-slate-400" />
+                  )}
+                  Camera Feed
+                </CardTitle>
+                <div className="text-3xl font-bold text-emerald-600">
+                  {count} reps
+                </div>
+              </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
               <video ref={videoRef} playsInline muted hidden />
-              <canvas ref={canvasRef} />
-              <div className="mt-2 font-bold">Reps: {count}</div>
+              <canvas
+                ref={canvasRef}
+                className="w-full bg-slate-100 object-cover"
+              />
             </CardContent>
           </Card>
         </div>
 
         <div className="grid gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle>Leaderboard</CardTitle>
+            <CardHeader className="border-b bg-slate-50">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Crown
+                    className={`size-5 ${
+                      winnerId ? "text-yellow-500" : "text-slate-400"
+                    }`}
+                  />
+                  Leaderboard
+                </CardTitle>
+                {winnerId && (
+                  <div className="rounded-full bg-yellow-100 px-3 py-1 text-sm font-medium text-yellow-700">
+                    Winner!
+                  </div>
+                )}
+              </div>
             </CardHeader>
-            <CardContent>
-              {leaderboard.map((p, i) => (
-                <div
-                  key={p.id}
-                  className={`flex justify-between ${p.id === winnerId ? "bg-emerald-50 rounded px-2 py-1 font-semibold" : ""}`}
-                >
-                  <span>
-                    {i + 1}. {p.name} {p.id === winnerId ? "🏆" : ""}
-                  </span>
-                  <span>{p.count}</span>
-                </div>
-              ))}
+            <CardContent className="pt-4">
+              <div className="space-y-3">
+                {leaderboard.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className={`flex items-center justify-between rounded-lg p-3 transition-colors ${
+                      p.id === winnerId
+                        ? "bg-yellow-50 text-yellow-900"
+                        : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`flex size-8 items-center justify-center rounded-full font-medium ${
+                          i === 0
+                            ? "bg-yellow-100 text-yellow-700"
+                            : i === 1
+                              ? "bg-slate-100 text-slate-600"
+                              : "bg-slate-50 text-slate-500"
+                        }`}
+                      >
+                        {i + 1}
+                      </div>
+                      <span className="font-medium">{p.name}</span>
+                      {p.id === winnerId && (
+                        <Crown className="size-4 text-yellow-500" />
+                      )}
+                    </div>
+                    <div className="text-lg font-bold">{p.count}</div>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </div>
