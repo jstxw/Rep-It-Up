@@ -58,6 +58,7 @@ export default function RoomPage() {
       runningMode: "VIDEO",
       numPoses: 1,
     });
+    console.log("[MODEL] loaded");
   };
 
   // Angle helper
