@@ -16,11 +16,11 @@ type Player = {
 };
 
 export default function RoomPage() {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ id: string; name: string }>();
   const router = useRouter();
 
   const roomId = params.id;
-  const [nameDraft, setNameDraft] = useState("");
+  const playerName = params.name;
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
   const countRef = useRef(0);
 
@@ -37,7 +37,6 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!roomId) return notFound();
-    setNameDraft("Player"); // default
   }, [roomId]);
 
   // Setup camera
@@ -196,7 +195,7 @@ export default function RoomPage() {
   const startSession = async () => {
     await setupCamera();
     await setupPose();
-    connectWS(roomId, nameDraft);
+    connectWS(roomId, playerName);
     requestAnimationFrame(loop);
   };
 

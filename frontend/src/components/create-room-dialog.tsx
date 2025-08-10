@@ -44,14 +44,13 @@ export function CreateRoomDialog({ open = false, onOpenChange }: Props) {
 
     setPending(true);
 
-    // Simulate API call or room creation logic
-    // await createRoom(trimmedCode, trimmedName)
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     setPending(false);
     onOpenChange(false);
 
     // Navigate to the room with player name as query param
-    router.push(`/room/${trimmedCode}?name=${encodeURIComponent(trimmedName)}`);
+    router.push(`/room/${trimmedCode}/${encodeURIComponent(trimmedName)}`);
   };
 
   return (

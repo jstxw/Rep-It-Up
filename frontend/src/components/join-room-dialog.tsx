@@ -45,7 +45,7 @@ export function JoinRoomDialog({ open = false, onOpenChange }: Props) {
     onOpenChange(false);
 
     // Navigate to room with player name as query param
-    router.push(`/room/${trimmedCode}?name=${encodeURIComponent(trimmedName)}`);
+    router.push(`/room/${trimmedCode}/${encodeURIComponent(trimmedName)}`);
   };
 
   return (
