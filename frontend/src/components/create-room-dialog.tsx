@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { User, Key, Shuffle, AlertCircle, Loader2 } from "lucide-react";
 
 type Props = {
   open?: boolean;
@@ -26,6 +27,15 @@ export function CreateRoomDialog({ open = false, onOpenChange }: Props) {
   const [code, setCode] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const generateRandomCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setCode(result);
+  };
 
   const onCreate = async () => {
     setError(null);
@@ -68,63 +78,91 @@ export function CreateRoomDialog({ open = false, onOpenChange }: Props) {
       <DialogTrigger asChild>
         <Button className="hidden">Create</Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create a room</DialogTitle>
-          <DialogDescription>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader className="text-center space-y-3">
+          <div className="mx-auto w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
+            <User className="w-6 h-6 text-white" />
+          </div>
+          <DialogTitle className="text-2xl font-bold">Create a room</DialogTitle>
+          <DialogDescription className="text-base text-gray-600">
             Enter your name and choose a 6-character code for your room.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 py-2">
+        <div className="space-y-6 py-4">
           {/* Player Name Input */}
-          <div className="grid gap-2">
-            <Label htmlFor="player-name">Player Name</Label>
+          <div className="space-y-3">
+            <Label htmlFor="player-name" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <User className="w-4 h-4 text-emerald-600" />
+              Player Name
+            </Label>
             <Input
               id="player-name"
-              placeholder="Thomas"
+              placeholder="Enter your name..."
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="h-12 text-base bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 focus:ring-emerald-500/20 transition-all duration-200"
             />
           </div>
 
           {/* Room Code Input */}
-          <div className="grid gap-2">
-            <Label htmlFor="room-code">Room Code</Label>
+          <div className="space-y-3">
+            <Label htmlFor="room-code" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+              <Key className="w-4 h-4 text-emerald-600" />
+              Room Code
+            </Label>
             <div className="flex gap-2">
               <Input
                 id="room-code"
                 placeholder="ABC123"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
-                className="font-mono tracking-widest uppercase"
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                className="h-12 font-mono text-lg tracking-widest uppercase text-center bg-gray-50 border-gray-200 focus:bg-white focus:border-emerald-500 focus:ring-emerald-500/20 transition-all duration-200"
                 maxLength={6}
               />
               <Button
                 type="button"
                 variant="outline"
+                size="icon"
                 onClick={generateRandomCode}
-                disabled={pending}
-                className="whitespace-nowrap"
+                className="h-12 w-12 border-gray-200 hover:border-emerald-300 hover:bg-emerald-50 transition-colors duration-200"
+                title="Generate random code"
               >
-                Random
+                <Shuffle className="w-4 h-4 text-emerald-600" />
               </Button>
             </div>
           </div>
 
           {/* Error Message */}
-          {error && <div className="text-sm text-red-600">{error}</div>}
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm font-medium">{error}</span>
+            </div>
+          )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="gap-3 pt-2">
+          <Button 
+            variant="outline" 
+            onClick={() => onOpenChange(false)}
+            className="flex-1 h-11 border-gray-200 hover:bg-gray-50 transition-colors duration-200"
+          >
             Cancel
           </Button>
           <Button
             onClick={onCreate}
             disabled={!name.trim() || !code.trim() || pending}
+            className="flex-1 h-11 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-[1.02] disabled:hover:scale-100 disabled:opacity-50"
           >
-            {pending ? "Creating..." : "Create Room"}
+            {pending ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Room"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
