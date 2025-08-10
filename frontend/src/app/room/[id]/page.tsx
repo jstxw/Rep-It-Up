@@ -164,6 +164,7 @@ export default function RoomPage() {
 
       if (res.landmarks && res.landmarks.length > 0) {
         const lms = res.landmarks[0];
+        if (!lms) return;
         const s = lms[12],
           e = lms[14],
           w = lms[16];
