@@ -27,6 +27,9 @@ class Room:
         self.players: Dict[str, Player] = {}
         self.conns: Set[WebSocket] = set()
         self.lock = asyncio.Lock()
+        # Winner state and target reps
+        self.winner = None  # {"id": str, "name": str, "count": int}
+        self.target = 5
 
     def leaderboard(self):
         return sorted(
@@ -58,6 +61,17 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
         p = Player(pid, name, websocket)
         room.players[pid] = p
         await broadcast(room, {"type": "join", "room": room.code, "players": room.leaderboard()})
+        # If a winner was already declared, inform the newly joined client
+        if room.winner:
+            try:
+                await websocket.send_text(json.dumps({
+                    "type": "stop",
+                    "room": room.code,
+                    "winner": room.winner,
+                    "players": room.leaderboard(),
+                }))
+            except Exception:
+                pass
 
     try:
         while True:
@@ -70,7 +84,31 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
                     if pid in room.players:
                         room.players[pid].count = cnt
                         room.players[pid].last_seen = time.time()
-                    await broadcast(room, {"type": "leaderboard", "room": room.code, "players": room.leaderboard()})
+
+                    # If no winner yet, check for first to reach target
+                    if room.winner is None:
+                        # Determine if this player just hit the target
+                        p_now = room.players.get(pid)
+                        if p_now and p_now.count >= room.target:
+                            room.winner = {"id": p_now.id, "name": p_now.name, "count": p_now.count}
+                            # Announce stop event once with winner info
+                            await broadcast(room, {
+                                "type": "stop",
+                                "room": room.code,
+                                "winner": room.winner,
+                                "players": room.leaderboard(),
+                            })
+                        else:
+                            # Continue normal leaderboard updates until winner is declared
+                            await broadcast(room, {
+                                "type": "leaderboard",
+                                "room": room.code,
+                                "players": room.leaderboard(),
+                            })
+                    else:
+                        # Winner already declared; ignore further leaderboard broadcasts
+                        # (We still update last_seen above to keep connection alive)
+                        pass
 
             elif msg.get("type") == "ping":
                 async with room.lock:
@@ -84,6 +122,9 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
             room.conns.discard(websocket)
             room.players.pop(pid, None)
             await broadcast(room, {"type": "leave", "room": room.code, "players": room.leaderboard()})
+            # If room is empty, reset winner for next round
+            if not room.players and not room.conns:
+                room.winner = None
 
 # Serve ./web as the site root (http://localhost:8000/) — mount last so /ws works
 app.mount("/", StaticFiles(directory="web", html=True), name="web")

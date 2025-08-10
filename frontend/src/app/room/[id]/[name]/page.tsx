@@ -23,6 +23,7 @@ export default function RoomPage() {
   const playerName = params.name;
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
   const [count, setCount] = useState(0);
+  const [winnerId, setWinnerId] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -34,6 +35,7 @@ export default function RoomPage() {
   const sentCountRef = useRef(-1);
   const lastSentTsRef = useRef(0);
   const lastTsRef = useRef(0);
+  const stoppedRef = useRef(false);
 
   useEffect(() => {
     if (!roomId) return notFound();
@@ -90,6 +92,7 @@ export default function RoomPage() {
   // Send WS update
   const sendUpdateMaybe = (newCount: number) => {
     const now = performance.now() / 1000;
+    if (stoppedRef.current) return;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     if (
       newCount !== sentCountRef.current ||
@@ -102,17 +105,41 @@ export default function RoomPage() {
     }
   };
 
-  const SocketDataSchema = z.object({
-    type: z.string(),
-    room: z.string(),
-    players: z.array(
-      z.object({
+  const SocketDataSchema = z.discriminatedUnion("type", [
+    z.object({
+      type: z.literal("leaderboard"),
+      room: z.string(),
+      players: z.array(
+        z.object({ id: z.string(), name: z.string(), count: z.number() })
+      ),
+    }),
+    z.object({
+      type: z.literal("join"),
+      room: z.string(),
+      players: z.array(
+        z.object({ id: z.string(), name: z.string(), count: z.number() })
+      ),
+    }),
+    z.object({
+      type: z.literal("leave"),
+      room: z.string(),
+      players: z.array(
+        z.object({ id: z.string(), name: z.string(), count: z.number() })
+      ),
+    }),
+    z.object({
+      type: z.literal("stop"),
+      room: z.string(),
+      winner: z.object({
         id: z.string(),
         name: z.string(),
         count: z.number(),
       }),
-    ),
-  });
+      players: z.array(
+        z.object({ id: z.string(), name: z.string(), count: z.number() })
+      ),
+    }),
+  ]);
 
   // Connect WebSocket
   const connectWS = (room: string, name: string) => {
@@ -127,7 +154,13 @@ export default function RoomPage() {
       console.log("[WS]: incoming data: ", ev.data);
       const data = SocketDataSchema.parse(JSON.parse(ev.data as string));
       if (["leaderboard", "join", "leave"].includes(data.type)) {
-        setLeaderboard(Array.isArray(data.players) ? data.players : []);
+        setWinnerId(null);
+        stoppedRef.current = false;
+        setLeaderboard(data.players);
+      } else if (data.type === "stop") {
+        setLeaderboard(data.players);
+        setWinnerId(data.winner.id);
+        stoppedRef.current = true;
       }
     };
   };
@@ -173,14 +206,16 @@ export default function RoomPage() {
             wy = w.y * vh;
           const ang = angleDeg(sx, sy, ex, ey, wx, wy);
 
-          if (ang < 70 && stageRef.current === "UP") {
-            stageRef.current = "DOWN";
-          } else if (ang > 160 && stageRef.current === "DOWN") {
-            stageRef.current = "UP";
-            setCount((p) => {
-              sendUpdateMaybe(p + 1);
-              return p + 1;
-            });
+          if (!stoppedRef.current) {
+            if (ang < 70 && stageRef.current === "UP") {
+              stageRef.current = "DOWN";
+            } else if (ang > 160 && stageRef.current === "DOWN") {
+              stageRef.current = "UP";
+              setCount((p) => {
+                sendUpdateMaybe(p + 1);
+                return p + 1;
+              });
+            }
           }
         }
       }
@@ -233,9 +268,12 @@ export default function RoomPage() {
             </CardHeader>
             <CardContent>
               {leaderboard.map((p, i) => (
-                <div key={p.id} className="flex justify-between">
+                <div
+                  key={p.id}
+                  className={`flex justify-between ${p.id === winnerId ? "bg-emerald-50 rounded px-2 py-1 font-semibold" : ""}`}
+                >
                   <span>
-                    {i + 1}. {p.name}
+                    {i + 1}. {p.name} {p.id === winnerId ? "🏆" : ""}
                   </span>
                   <span>{p.count}</span>
                 </div>
