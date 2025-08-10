@@ -125,7 +125,7 @@ export default function RoomPage() {
     console.log("[WS]: connecting");
     wsRef.current.onmessage = (ev) => {
       console.log("[WS]: incoming data: ", ev.data);
-      const data = SocketDataSchema.parse(JSON.parse(ev.data));
+      const data = SocketDataSchema.parse(JSON.parse(ev.data as string));
       if (["leaderboard", "join", "leave"].includes(data.type)) {
         setLeaderboard(Array.isArray(data.players) ? data.players : []);
       }
