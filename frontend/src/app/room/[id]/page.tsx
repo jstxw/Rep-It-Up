@@ -15,8 +15,7 @@ export default function RoomPage() {
   const roomId = params.id;
   const [nameDraft, setNameDraft] = useState("");
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [count, setCount] = useState(0);
-  const [running, setRunning] = useState(false);
+  const countRef = useRef(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -87,9 +86,15 @@ export default function RoomPage() {
   const sendUpdateMaybe = () => {
     const now = performance.now() / 1000;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
-    if (count !== sentCountRef.current || now - lastSentTsRef.current > 2.0) {
-      wsRef.current.send(JSON.stringify({ type: "update", count: count | 0 }));
-      sentCountRef.current = count;
+    if (
+      countRef.current !== sentCountRef.current ||
+      now - lastSentTsRef.current > 2.0
+    ) {
+      console.log("[WS]: send, ", countRef.current);
+      wsRef.current.send(
+        JSON.stringify({ type: "update", count: countRef.current }),
+      );
+      sentCountRef.current = countRef.current;
       lastSentTsRef.current = now;
     }
   };
@@ -132,7 +137,6 @@ export default function RoomPage() {
 
     const now = performance.now();
     const res = await poseRef.current.detectForVideo(videoRef.current, now);
-    console.log("[MODEL] detected landmarks: ", res);
     ctx?.drawImage(videoRef.current, 0, 0, vw, vh);
 
     if (res.landmarks && res.landmarks.length > 0) {
@@ -152,7 +156,7 @@ export default function RoomPage() {
         if (ang < 70 && stageRef.current === "UP") stageRef.current = "DOWN";
         else if (ang > 160 && stageRef.current === "DOWN") {
           stageRef.current = "UP";
-          setCount((c) => c + 1);
+          countRef.current += 1;
           sendUpdateMaybe();
         }
       }
@@ -167,13 +171,11 @@ export default function RoomPage() {
     await setupCamera();
     await setupPose();
     connectWS(roomId, nameDraft);
-    setRunning(true);
     requestAnimationFrame(loop);
   };
 
   return (
     <main className="min-h-[100dvh]">
-      {/* Your existing header */}
       <header className="border-b">
         <div className="container mx-auto flex items-center gap-3 px-4 py-3">
           <Button variant="ghost" size="icon" onClick={() => router.push("/")}>
@@ -193,9 +195,9 @@ export default function RoomPage() {
               <CardTitle>Push-up Counter</CardTitle>
             </CardHeader>
             <CardContent>
-              <video ref={videoRef} playsInline muted />
+              <video ref={videoRef} playsInline muted hidden />
               <canvas ref={canvasRef} />
-              <div className="mt-2 font-bold">Reps: {count}</div>
+              <div className="mt-2 font-bold">Reps: {countRef.current}</div>
             </CardContent>
           </Card>
         </div>
