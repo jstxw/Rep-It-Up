@@ -105,11 +105,13 @@ export default function RoomPage() {
   const SocketDataSchema = z.object({
     type: z.string(),
     room: z.string(),
-    players: z.object({
-      id: z.string(),
-      name: z.string(),
-      count: z.number(),
-    }),
+    players: z.array(
+      z.object({
+        id: z.string(),
+        name: z.string(),
+        count: z.number(),
+      }),
+    ),
   });
 
   // Connect WebSocket
@@ -123,12 +125,10 @@ export default function RoomPage() {
     console.log("[WS]: connecting");
     wsRef.current.onmessage = (ev) => {
       console.log("[WS]: incoming data: ", ev.data);
-      try {
-        const data = SocketDataSchema.parse(ev.data);
-        if (["leaderboard", "join", "leave"].includes(data.type)) {
-          setLeaderboard(Array.isArray(data.players) ? data.players : []);
-        }
-      } catch {}
+      const data = SocketDataSchema.parse(JSON.parse(ev.data));
+      if (["leaderboard", "join", "leave"].includes(data.type)) {
+        setLeaderboard(Array.isArray(data.players) ? data.players : []);
+      }
     };
   };
 
