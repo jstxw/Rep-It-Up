@@ -1,37 +1,127 @@
-import Link from "next/link";
+"use client";
 
-export default function HomePage() {
+import Link from "next/link";
+import { useState } from "react";
+import { Plus, Users, Bolt, Search, Trophy } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+
+import { usePushupStore } from "@/hooks/use-pushup-store";
+import { CreateRoomDialog } from "@/components/create-room-dialog";
+import { JoinRoomDialog } from "@/components/join-room-dialog";
+
+export default function Page() {
+  const { rooms, you } = usePushupStore();
+  const [query, setQuery] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
+
+  const activeCount = rooms.filter((r) => r.isActive).length;
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-[#2e026d] to-[#15162c] text-white">
-      <div className="container flex flex-col items-center justify-center gap-12 px-4 py-16">
-        <h1 className="text-5xl font-extrabold tracking-tight text-white sm:text-[5rem]">
-          Create <span className="text-[hsl(280,100%,70%)]">T3</span> App
-        </h1>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:gap-8">
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/usage/first-steps"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">First Steps →</h3>
-            <div className="text-lg">
-              Just the basics - Everything you need to know to set up your
-              database and authentication.
-            </div>
+    <main className="flex min-h-[100dvh] flex-col">
+      <header className="border-b">
+        <div className="container mx-auto flex items-center gap-3 px-4 py-4">
+          <Bolt className="size-6 text-emerald-600" aria-hidden="true" />
+          <Link href="/" className="text-lg font-bold">
+            PushUp
           </Link>
-          <Link
-            className="flex max-w-xs flex-col gap-4 rounded-xl bg-white/10 p-4 text-white hover:bg-white/20"
-            href="https://create.t3.gg/en/introduction"
-            target="_blank"
-          >
-            <h3 className="text-2xl font-bold">Documentation →</h3>
-            <div className="text-lg">
-              Learn more about Create T3 App, the libraries it uses, and how to
-              deploy it.
-            </div>
-          </Link>
+          <Badge variant="secondary" className="ml-1">
+            Mock
+          </Badge>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" onClick={() => setJoinOpen(true)}>
+              Join by code
+            </Button>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="mr-2 size-4" />
+              Create room
+            </Button>
+          </div>
         </div>
-      </div>
+      </header>
+
+      <section className="container mx-auto grid gap-6 px-4 py-8">
+        <div className="grid items-center gap-6 lg:grid-cols-[1fr_380px]">
+          <div className="grid gap-4">
+            <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+              Do push-ups together, anywhere.
+            </h1>
+            <p className="text-muted-foreground max-w-[55ch]">
+              Create a room, invite friends, and track your push-ups in real
+              time. Start a quick session or compete on the leaderboard. No
+              signup needed—this demo uses mock data.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button size="lg" onClick={() => setCreateOpen(true)}>
+                <Plus className="mr-2 size-4" />
+                Create a room
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={() => setJoinOpen(true)}
+              >
+                Join by code
+              </Button>
+            </div>
+            <div className="text-muted-foreground mt-2 flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2">
+                <Users className="size-4" aria-hidden="true" />
+                <span>
+                  {rooms.reduce((acc, r) => acc + r.participants.length, 0)}{" "}
+                  participants
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Bolt className="size-4 text-emerald-600" aria-hidden="true" />
+                <span>
+                  {activeCount} active session{activeCount === 1 ? "" : "s"}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <Card className="border-emerald-100">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Trophy
+                  className="size-5 text-emerald-600"
+                  aria-hidden="true"
+                />
+                Leader tips
+              </CardTitle>
+              <CardDescription>
+                How to run a better group session
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div>
+                • Set a clear goal (e.g., 100 total or AMRAP in 5 minutes)
+              </div>
+              <div>• Start the timer so everyone stays in sync</div>
+              <div>• Cheer teammates and keep rest short</div>
+              <div>• Keep the form clean—quality over quantity!</div>
+            </CardContent>
+            <CardFooter></CardFooter>
+          </Card>
+        </div>
+
+        <Separator />
+      </section>
+
+      <CreateRoomDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <JoinRoomDialog open={joinOpen} onOpenChange={setJoinOpen} />
     </main>
   );
 }
