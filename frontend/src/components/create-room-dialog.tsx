@@ -53,6 +53,13 @@ export function CreateRoomDialog({ open = false, onOpenChange }: Props) {
     router.push(`/room/${trimmedCode}/${encodeURIComponent(trimmedName)}`);
   };
 
+  const generateRandomCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const randomCode = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    setCode(randomCode);
+    setError(null);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
@@ -81,14 +88,25 @@ export function CreateRoomDialog({ open = false, onOpenChange }: Props) {
           {/* Room Code Input */}
           <div className="grid gap-2">
             <Label htmlFor="room-code">Room Code</Label>
-            <Input
-              id="room-code"
-              placeholder="ABC123"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="font-mono tracking-widest uppercase"
-              maxLength={6}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="room-code"
+                placeholder="ABC123"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="font-mono tracking-widest uppercase"
+                maxLength={6}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={generateRandomCode}
+                disabled={pending}
+                className="whitespace-nowrap"
+              >
+                Random
+              </Button>
+            </div>
           </div>
 
           {/* Error Message */}
