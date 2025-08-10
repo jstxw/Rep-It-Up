@@ -43,6 +43,7 @@ export default function RoomPage() {
     });
     videoRef.current.srcObject = stream;
     await videoRef.current.play();
+    console.log("[WEBCAM]: loaded");
   };
 
   // Setup Mediapipe Pose
@@ -101,7 +102,9 @@ export default function RoomPage() {
       } catch {}
     const uri = `${env.NEXT_PUBLIC_BACKEND_URL}/ws/${room}?name=${encodeURIComponent(name)}`;
     wsRef.current = new WebSocket(uri);
+    console.log("[WS]: connecting");
     wsRef.current.onmessage = (ev) => {
+      console.log("[WS]: incoming data: ", ev.data);
       try {
         const data = JSON.parse(ev.data);
         if (["leaderboard", "join", "leave"].includes(data.type)) {
@@ -113,12 +116,7 @@ export default function RoomPage() {
 
   // Main loop
   const loop = async () => {
-    if (
-      !running ||
-      !videoRef.current ||
-      !canvasRef.current ||
-      !poseRef.current
-    ) {
+    if (!videoRef.current || !canvasRef.current || !poseRef.current) {
       requestAnimationFrame(loop);
       return;
     }
@@ -134,6 +132,7 @@ export default function RoomPage() {
 
     const now = performance.now();
     const res = await poseRef.current.detectForVideo(videoRef.current, now);
+    console.log("[MODEL] detected landmarks: ", res);
     ctx?.drawImage(videoRef.current, 0, 0, vw, vh);
 
     if (res.landmarks && res.landmarks.length > 0) {
