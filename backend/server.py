@@ -123,8 +123,9 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
             room.players.pop(pid, None)
             await broadcast(room, {"type": "leave", "room": room.code, "players": room.leaderboard()})
             # If room is empty, reset winner for next round
-            if not room.players and not room.conns:
+            if not room.conns:
                 room.winner = None
+                room.players.clear()
 
 # Serve ./web as the site root (http://localhost:8000/) — mount last so /ws works
 app.mount("/", StaticFiles(directory="web", html=True), name="web")
