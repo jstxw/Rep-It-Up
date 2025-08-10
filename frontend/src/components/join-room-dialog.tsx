@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -11,34 +11,42 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { usePushupStore } from "@/hooks/use-pushup-store"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Props = {
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-}
+  open?: boolean;
+  onOpenChange: (open: boolean) => void;
+};
 
-export function JoinRoomDialog({ open = false, onOpenChange = () => {} }: Props) {
-  const router = useRouter()
-  const { joinRoomByCode } = usePushupStore()
-  const [code, setCode] = useState("")
-  const [error, setError] = useState<string | null>(null)
+export function JoinRoomDialog({ open = false, onOpenChange }: Props) {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const onJoin = () => {
-    setError(null)
-    const c = code.trim().toUpperCase()
-    if (!c) return
-    const room = joinRoomByCode(c)
-    if (!room) {
-      setError("Room not found. Check the code and try again.")
-      return
+    setError(null);
+    const trimmedCode = code.trim().toUpperCase();
+    const trimmedName = name.trim();
+
+    if (!trimmedName) {
+      setError("Please enter your name.");
+      return;
     }
-    onOpenChange(false)
-    router.push(`/room/${room.id}`)
-  }
+
+    if (!trimmedCode) {
+      setError("Please enter a valid room code.");
+      return;
+    }
+
+    // Close dialog
+    onOpenChange(false);
+
+    // Navigate to room with player name as query param
+    router.push(`/room/${trimmedCode}?name=${encodeURIComponent(trimmedName)}`);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -48,31 +56,49 @@ export function JoinRoomDialog({ open = false, onOpenChange = () => {} }: Props)
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Join a room</DialogTitle>
-          <DialogDescription>Enter the 6-character code shared by your friend.</DialogDescription>
+          <DialogDescription>
+            Enter your name and the 6-character room code shared by your friend.
+          </DialogDescription>
         </DialogHeader>
+
         <div className="grid gap-3 py-2">
+          {/* Player Name Input */}
           <div className="grid gap-2">
-            <Label htmlFor="join-code">Room code</Label>
+            <Label htmlFor="player-name">Your Name</Label>
+            <Input
+              id="player-name"
+              placeholder="John Doe"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          {/* Room Code Input */}
+          <div className="grid gap-2">
+            <Label htmlFor="join-code">Room Code</Label>
             <Input
               id="join-code"
               placeholder="ABC123"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="uppercase tracking-widest font-mono"
+              className="font-mono tracking-widest uppercase"
               maxLength={6}
             />
           </div>
+
+          {/* Error Message */}
           {error && <div className="text-sm text-red-600">{error}</div>}
         </div>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={onJoin} disabled={!code.trim()}>
+          <Button onClick={onJoin} disabled={!code.trim() || !name.trim()}>
             Join
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

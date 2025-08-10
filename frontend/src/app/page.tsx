@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Plus, Users, Bolt, Search, Trophy } from "lucide-react";
+import { Plus, Users, Bolt, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,21 +12,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-import { usePushupStore } from "@/hooks/use-pushup-store";
 import { CreateRoomDialog } from "@/components/create-room-dialog";
 import { JoinRoomDialog } from "@/components/join-room-dialog";
 
 export default function Page() {
-  const { rooms, you } = usePushupStore();
-  const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
-
-  const activeCount = rooms.filter((r) => r.isActive).length;
 
   return (
     <main className="flex min-h-[100dvh] flex-col">
@@ -78,16 +72,11 @@ export default function Page() {
             <div className="text-muted-foreground mt-2 flex items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <Users className="size-4" aria-hidden="true" />
-                <span>
-                  {rooms.reduce((acc, r) => acc + r.participants.length, 0)}{" "}
-                  participants
-                </span>
+                <span>0 participants</span>
               </div>
               <div className="flex items-center gap-2">
                 <Bolt className="size-4 text-emerald-600" aria-hidden="true" />
-                <span>
-                  {activeCount} active session{activeCount === 1 ? "" : "s"}
-                </span>
+                <span>0 active session</span>
               </div>
             </div>
           </div>

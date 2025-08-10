@@ -7,6 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft } from "lucide-react";
 import * as vision from "@mediapipe/tasks-vision";
 import { env } from "@/env";
+import z from "zod";
+
+type Player = {
+  id: string;
+  name: string;
+  count: number;
+};
 
 export default function RoomPage() {
   const params = useParams<{ id: string }>();
@@ -14,7 +21,7 @@ export default function RoomPage() {
 
   const roomId = params.id;
   const [nameDraft, setNameDraft] = useState("");
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<Player[]>([]);
   const countRef = useRef(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -22,7 +29,7 @@ export default function RoomPage() {
 
   // Pose + WS variables
   const wsRef = useRef<WebSocket | null>(null);
-  const poseRef = useRef<any>(null);
+  const poseRef = useRef<vision.PoseLandmarker | null>(null);
   const stageRef = useRef<"UP" | "DOWN">("UP");
   const sentCountRef = useRef(-1);
   const lastSentTsRef = useRef(0);
@@ -99,6 +106,16 @@ export default function RoomPage() {
     }
   };
 
+  const SocketDataSchema = z.object({
+    type: z.string(),
+    room: z.string(),
+    players: z.object({
+      id: z.string(),
+      name: z.string(),
+      count: z.number(),
+    }),
+  });
+
   // Connect WebSocket
   const connectWS = (room: string, name: string) => {
     if (wsRef.current)
@@ -111,7 +128,7 @@ export default function RoomPage() {
     wsRef.current.onmessage = (ev) => {
       console.log("[WS]: incoming data: ", ev.data);
       try {
-        const data = JSON.parse(ev.data);
+        const data = SocketDataSchema.parse(ev.data);
         if (["leaderboard", "join", "leave"].includes(data.type)) {
           setLeaderboard(Array.isArray(data.players) ? data.players : []);
         }
@@ -120,50 +137,58 @@ export default function RoomPage() {
   };
 
   // Main loop
-  const loop = async () => {
-    if (!videoRef.current || !canvasRef.current || !poseRef.current) {
-      requestAnimationFrame(loop);
-      return;
-    }
-    const ctx = canvasRef.current.getContext("2d");
-    const vw = videoRef.current.videoWidth;
-    const vh = videoRef.current.videoHeight;
-    if (vw === 0 || vh === 0) return requestAnimationFrame(loop);
+  const loop = () => {
+    // Wrap async logic in an IIFE
+    void (async () => {
+      if (!videoRef.current || !canvasRef.current || !poseRef.current) {
+        requestAnimationFrame(loop);
+        return;
+      }
 
-    if (canvasRef.current.width !== vw || canvasRef.current.height !== vh) {
-      canvasRef.current.width = vw;
-      canvasRef.current.height = vh;
-    }
+      const ctx = canvasRef.current.getContext("2d");
+      const vw = videoRef.current.videoWidth;
+      const vh = videoRef.current.videoHeight;
+      if (vw === 0 || vh === 0) {
+        requestAnimationFrame(loop);
+        return;
+      }
 
-    const now = performance.now();
-    const res = await poseRef.current.detectForVideo(videoRef.current, now);
-    ctx?.drawImage(videoRef.current, 0, 0, vw, vh);
+      if (canvasRef.current.width !== vw || canvasRef.current.height !== vh) {
+        canvasRef.current.width = vw;
+        canvasRef.current.height = vh;
+      }
 
-    if (res.landmarks && res.landmarks.length > 0) {
-      const lms = res.landmarks[0];
-      const s = lms[12],
-        e = lms[14],
-        w = lms[16];
-      if (s && e && w) {
-        const sx = s.x * vw,
-          sy = s.y * vh;
-        const ex = e.x * vw,
-          ey = e.y * vh;
-        const wx = w.x * vw,
-          wy = w.y * vh;
-        const ang = angleDeg(sx, sy, ex, ey, wx, wy);
+      const now = performance.now();
+      const res = poseRef.current.detectForVideo(videoRef.current, now);
+      ctx?.drawImage(videoRef.current, 0, 0, vw, vh);
 
-        if (ang < 70 && stageRef.current === "UP") stageRef.current = "DOWN";
-        else if (ang > 160 && stageRef.current === "DOWN") {
-          stageRef.current = "UP";
-          countRef.current += 1;
-          sendUpdateMaybe();
+      if (res.landmarks && res.landmarks.length > 0) {
+        const lms = res.landmarks[0];
+        const s = lms[12],
+          e = lms[14],
+          w = lms[16];
+        if (s && e && w) {
+          const sx = s.x * vw,
+            sy = s.y * vh;
+          const ex = e.x * vw,
+            ey = e.y * vh;
+          const wx = w.x * vw,
+            wy = w.y * vh;
+          const ang = angleDeg(sx, sy, ex, ey, wx, wy);
+
+          if (ang < 70 && stageRef.current === "UP") {
+            stageRef.current = "DOWN";
+          } else if (ang > 160 && stageRef.current === "DOWN") {
+            stageRef.current = "UP";
+            countRef.current += 1;
+            sendUpdateMaybe();
+          }
         }
       }
-    }
 
-    lastTsRef.current = now;
-    requestAnimationFrame(loop);
+      lastTsRef.current = now;
+      requestAnimationFrame(loop);
+    })();
   };
 
   // Start session
