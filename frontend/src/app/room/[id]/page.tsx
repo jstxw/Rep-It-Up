@@ -5,6 +5,7 @@ import { notFound, useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft } from "lucide-react";
+import * as vision from "@mediapipe/tasks-vision";
 
 export default function RoomPage() {
   const params = useParams<{ id: string }>();
@@ -12,7 +13,6 @@ export default function RoomPage() {
 
   const roomId = params.id;
   const [nameDraft, setNameDraft] = useState("");
-  const [copied, setCopied] = useState(false);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [count, setCount] = useState(0);
   const [running, setRunning] = useState(false);
@@ -46,9 +46,6 @@ export default function RoomPage() {
 
   // Setup Mediapipe Pose
   const setupPose = async () => {
-    const vision = await import(
-      "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0"
-    );
     const { FilesetResolver, PoseLandmarker } = vision;
     const fileset = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.0/wasm",
