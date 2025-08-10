@@ -22,7 +22,7 @@ export default function RoomPage() {
   const roomId = params.id;
   const playerName = params.name;
   const [leaderboard, setLeaderboard] = useState<Player[]>([]);
-  const countRef = useRef(0);
+  const [count, setCount] = useState(0);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -87,20 +87,17 @@ export default function RoomPage() {
     const clamped = Math.max(-1, Math.min(1, dot));
     return (Math.acos(clamped) * 180) / Math.PI;
   };
-
   // Send WS update
-  const sendUpdateMaybe = () => {
+  const sendUpdateMaybe = (newCount: number) => {
     const now = performance.now() / 1000;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     if (
-      countRef.current !== sentCountRef.current ||
+      newCount !== sentCountRef.current ||
       now - lastSentTsRef.current > 2.0
     ) {
-      console.log("[WS]: send, ", countRef.current);
-      wsRef.current.send(
-        JSON.stringify({ type: "update", count: countRef.current }),
-      );
-      sentCountRef.current = countRef.current;
+      console.log("[WS]: send, ", newCount);
+      wsRef.current.send(JSON.stringify({ type: "update", count: newCount }));
+      sentCountRef.current = newCount;
       lastSentTsRef.current = now;
     }
   };
@@ -180,8 +177,10 @@ export default function RoomPage() {
             stageRef.current = "DOWN";
           } else if (ang > 160 && stageRef.current === "DOWN") {
             stageRef.current = "UP";
-            countRef.current += 1;
-            sendUpdateMaybe();
+            setCount((p) => {
+              sendUpdateMaybe(p + 1);
+              return p + 1;
+            });
           }
         }
       }
@@ -222,7 +221,7 @@ export default function RoomPage() {
             <CardContent>
               <video ref={videoRef} playsInline muted hidden />
               <canvas ref={canvasRef} />
-              <div className="mt-2 font-bold">Reps: {countRef.current}</div>
+              <div className="mt-2 font-bold">Reps: {count}</div>
             </CardContent>
           </Card>
         </div>
