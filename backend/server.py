@@ -64,12 +64,8 @@ async def websocket_endpoint(websocket: WebSocket, room_code: str):
         # If a winner was already declared, inform the newly joined client
         if room.winner:
             try:
-                await websocket.send_text(json.dumps({
-                    "type": "stop",
-                    "room": room.code,
-                    "winner": room.winner,
-                    "players": room.leaderboard(),
-                }))
+                await websocket.close()
+                return
             except Exception:
                 pass
 
