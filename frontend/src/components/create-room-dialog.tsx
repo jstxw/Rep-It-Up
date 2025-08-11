@@ -28,14 +28,7 @@ export function CreateRoomDialog({ open = false, onOpenChange }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generateRandomCode = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCode(result);
-  };
+ 
 
   const onCreate = async () => {
     setError(null);
@@ -49,7 +42,7 @@ export function CreateRoomDialog({ open = false, onOpenChange }: Props) {
 
     if (!trimmedCode) {
       setError("Please choose a valid room code.");
-      return;
+      return; 
     }
 
     setPending(true);
