@@ -5,14 +5,10 @@
       "src": "frontend/package.json",
       "use": "@vercel/next",
       "config": {
-        "distDir": ".next"
+        "buildCommand": "npm run build",
+        "installCommand": "npm install",
+        "distDir": "frontend/.next"
       }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
     }
   ],
   "env": {
