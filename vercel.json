@@ -1,24 +1,11 @@
 {
-  "version": 2,
-  "name": "pushup-frontend",
-  "builds": [
-    {
-      "src": "frontend/package.json",
-      "use": "@vercel/next",
-      "config": {
-        "projectSettings": {
-          "framework": "nextjs"
-        }
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "frontend/$1"
-    }
-  ],
+  "buildCommand": "npm run build",
+  "outputDirectory": "out",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "rootDirectory": "frontend",
   "env": {
-    "NEXT_PUBLIC_BACKEND_URL": "wss://pushup-production.up.railway.app"
+    "NEXT_PUBLIC_BACKEND_URL": "wss://pushup-production.up.railway.app",
+    "SKIP_ENV_VALIDATION": "true"
   }
 }
