@@ -11,6 +11,8 @@ import z from "zod";
 
 // Required for static export with dynamic routes
 export async function generateStaticParams() {
+  // Return empty array for dynamic routes with static export
+  // This allows the routes to be generated at runtime
   return [];
 }
 

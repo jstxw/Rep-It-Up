@@ -6,7 +6,8 @@ import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
 const config = {
-  output: 'export',
+  // Temporarily disable static export for Vercel deployment
+  // output: 'export',
   trailingSlash: true,
   images: {
     unoptimized: true
