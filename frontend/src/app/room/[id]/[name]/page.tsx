@@ -9,6 +9,11 @@ import * as vision from "@mediapipe/tasks-vision";
 import { env } from "@/env";
 import z from "zod";
 
+// Required for static export with dynamic routes
+export async function generateStaticParams() {
+  return [];
+}
+
 type Player = {
   id: string;
   name: string;
