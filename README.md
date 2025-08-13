@@ -18,6 +18,7 @@ A real-time multiplayer push-up tracking application built with Next.js and Fast
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **Next.js 14** - React framework with App Router
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Modern styling
@@ -25,6 +26,7 @@ A real-time multiplayer push-up tracking application built with Next.js and Fast
 - **WebSocket Client** - Real-time communication
 
 ### Backend
+
 - **FastAPI** - High-performance Python web framework
 - **WebSocket** - Real-time bidirectional communication
 - **YOLO11 Pose Detection** - AI-powered movement tracking
@@ -33,11 +35,13 @@ A real-time multiplayer push-up tracking application built with Next.js and Fast
 ## 🏃‍♂️ Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - Python 3.11+
 - Git
 
 ### Frontend Setup
+
 ```bash
 cd frontend
 npm install
@@ -45,6 +49,7 @@ npm run dev
 ```
 
 ### Backend Setup
+
 ```bash
 cd backend
 pip install -r requirements.txt
@@ -54,11 +59,13 @@ uvicorn server:app --reload
 ## 🌐 Deployment
 
 ### Backend (Railway)
+
 1. Connect your GitHub repo to Railway
 2. Select the `backend` folder
 3. Railway auto-deploys with nixpacks
 
 ### Frontend (Vercel)
+
 1. Connect your GitHub repo to Vercel
 2. Set base directory to `frontend`
 3. Add environment variable: `NEXT_PUBLIC_BACKEND_URL`
